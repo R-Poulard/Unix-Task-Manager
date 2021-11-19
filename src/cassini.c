@@ -46,7 +46,7 @@ int main(int argc, char * argv[]) {
   char * minutes_str = "*";
   char * hours_str = "*";
   char * daysofweek_str = "*";
-  char * pipes_directory = "/home/emma/Documents/Cours/2021/SYS5/sy5-projet-2021-2022/run/pipes/";
+  char * pipes_directory = "/home/remi/Desktop/sy5-projet-2021-2022/run/pipes/";
   
   uint16_t operation = CLIENT_REQUEST_LIST_TASKS;
   uint64_t taskid;
@@ -56,8 +56,8 @@ int main(int argc, char * argv[]) {
   
   //VARIABLES
   char * fichier_test = "/tmp/fichier.txt";
-  char * fifo_request = "/saturnd-request-pipe";
-  char * fifo_reply = "/saturnd-reply-pipe";
+  char * fifo_request = "saturnd-request-pipe";
+  char * fifo_reply = "saturnd-reply-pipe";
   
   char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
   str_request[strlen(pipes_directory)+strlen(fifo_request)]='\0';
@@ -137,7 +137,7 @@ int main(int argc, char * argv[]) {
   // | TODO |
   // --------
 
-  //SWITCH ENVOI DEMON
+  //SWITCH
   switch(operation){
   case (CLIENT_REQUEST_LIST_TASKS)://'LS' *
     if(fd<0){
@@ -149,31 +149,32 @@ int main(int argc, char * argv[]) {
     break;
   case (CLIENT_REQUEST_CREATE_TASK)://'CR'
     time=malloc(sizeof(struct timing));//struct timing
-    if(time==NULL)exit(EXIT_FAILURE);//exit si le malloc est mauvais
-    buffer=malloc(sizeof(uint16_t)+sizeof(struct timing)+sizeof(commandline));//buffer
-    if(buffer==NULL) exit(EXIT_FAILURE);
+    if(time==NULL)exit(EXIT_FAILURE);
     
     t=timing_from_strings(time,minutes_str,hours_str,daysofweek_str);
     if(t<0)exit(EXIT_FAILURE);
-   
+    if(write(fd,time,sizeof(struct timing))<0){
+       exit(EXIT_FAILURE);
+    }      
+    
     command=malloc(sizeof(commandline));//command
     if(command==NULL) exit(EXIT_FAILURE);
-   
+    
     i=0;//In case -m -h -d option are defined
     if(strcmp(minutes_str,"*")!=0)i+=2;
     if(strcmp(hours_str,"*")!=0)i+=2;
     if(strcmp(daysofweek_str,"*")!=0)i+=2;
     
     if(argc-1<1) exit(EXIT_FAILURE);
-    
-    command->ARGC=argc-i-2;//le nombre d'argument - le temps e - "cassini -l"
-    
+    command->ARGC=argc-i-2;
     tab=malloc(sizeof(string)*(argc-i-1));
     for(int j=0;j<argc-i-2;j++){
-      tab[j].chaine=argv[j+i+2];
-      tab[j].L=strlen(tab[j].chaine);
+      tab[j].L=strlen(argv[j+i+2]);
+      for(int a=0;a<tab[j].L;a++){
+      	tab[j].chaine[a]=argv[j+i+2][a];
+      }
     }
-    printf("ARGC-i-2 = %d\n",argc-i-2);
+    /*printf("ARGC-i-2 = %d\n",argc-i-2);
     for(int k=0;k<(argc-i-1);k++){
       
       printf("k=%d, %d\n",k,tab[k].L);
@@ -182,21 +183,14 @@ int main(int argc, char * argv[]) {
       }
       if(tab[k].L==0)printf("NULL\n");
       printf("\n");
-    }
+    }*/
     command->ARGV=tab;
-    //On alloue au buffer les différents arguments
-    memcpy(buffer,&operation,sizeof(uint16_t));//HTOBE
-    memcpy(buffer+sizeof(uint16_t),time,sizeof(struct timing));
-    memcpy(buffer+sizeof(uint16_t)+sizeof(time),command,sizeof(commandline));
+
     
-    //printf("%jx\n",operation);
-    
-    if(write(fd,buffer,sizeof(buffer))<0){
+    if(write(fd,command,sizeof(commandline))<0){
 		perror("write");
-		printf("ca\n");
       exit(EXIT_FAILURE);
     }
-    free(buffer);
     free(time);
     free(command);
     free(tab);
@@ -210,49 +204,39 @@ int main(int argc, char * argv[]) {
     }
     break;
   case CLIENT_REQUEST_REMOVE_TASK://'RM' *
-    buffer=malloc(sizeof(uint16_t)+sizeof(uint64_t));
-    //On alloue au buffer les différents arguments
-    memcpy(buffer,&operation,sizeof(uint16_t));
-    memcpy(buffer+sizeof(uint16_t),&taskid,sizeof(uint64_t));
-    if(write(fd,buffer,sizeof(uint16_t)+sizeof(uint64_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
+    if(write(fd,&operation,sizeof(uint16_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
        exit(EXIT_FAILURE);
     }
-    
-    free(buffer);
+    if(write(fd,&taskid,sizeof(uint64_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
+       exit(EXIT_FAILURE);
+    }
     break;
   case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES://'TX' *
-    buffer=malloc(sizeof(uint16_t)+sizeof(uint64_t));
-    //On alloue au buffer les différents arguments
-    memcpy(buffer,&operation,sizeof(uint16_t));
-    memcpy(buffer+sizeof(uint16_t),&taskid,sizeof(uint64_t));
-    if(write(fd,buffer,sizeof(uint16_t)+sizeof(uint64_t))<0){
+     if(write(fd,&operation,sizeof(uint16_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
        exit(EXIT_FAILURE);
     }
-    free(buffer);
+    if(write(fd,&taskid,sizeof(uint64_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
+       exit(EXIT_FAILURE);
+    }
     break;
   case CLIENT_REQUEST_GET_STDOUT://'SO' *
-    buffer=malloc(sizeof(uint16_t)+sizeof(uint64_t));
-    //On alloue au buffer les différents arguments
-    memcpy(buffer,&operation,sizeof(uint16_t));
-    memcpy(buffer+sizeof(uint16_t),&taskid,sizeof(uint64_t));
-    if(write(fd,buffer,sizeof(uint16_t)+sizeof(uint64_t))<0){
+      if(write(fd,&operation,sizeof(uint16_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
        exit(EXIT_FAILURE);
     }
-    free(buffer);
+    if(write(fd,&taskid,sizeof(uint64_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
+       exit(EXIT_FAILURE);
+    }
     break;
   case CLIENT_REQUEST_GET_STDERR://'SE' *
-    buffer=malloc(sizeof(uint16_t)+sizeof(uint64_t));
-    //On alloue au buffer les différents arguments
-    memcpy(buffer,&operation,sizeof(uint16_t));
-    memcpy(buffer+sizeof(uint16_t),&taskid,sizeof(uint64_t));
-    if(write(fd,buffer,sizeof(uint16_t)+sizeof(uint64_t))<0){
+      if(write(fd,&operation,sizeof(uint16_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
        exit(EXIT_FAILURE);
     }
-    free(buffer);
-    break;
+    if(write(fd,&taskid,sizeof(uint64_t))<0){//uint64_t est converti dans fd (utiliser des valeurs > 33)
+       exit(EXIT_FAILURE);
+    }
   }
-  printf("ICI \n");
-  char *buffer2 = malloc(1024);
+
+ 
   char *str = malloc(strlen(pipes_directory)+strlen(fifo_reply)+1);
   str[strlen(pipes_directory)+strlen(fifo_reply)]='\0';
   
@@ -262,13 +246,11 @@ int main(int argc, char * argv[]) {
   
   printf("%s\n",str);
   int fd_reply=open(str,O_RDONLY);
-  if(fd<0){
-	   perror("open");
-	   exit(EXIT_FAILURE);
-  }
-  
-  uint16_t buf2;
-  
+  printf("OPEN=%d\n",fd_reply);
+  struct timing *tmps;
+  uint16_t *buf16;
+  uint64_t *buf64;
+  uint32_t *buf32;
   int rd;
   int wr;
   uint16_t *er=SERVER_REPLY_ERROR;
@@ -276,96 +258,93 @@ int main(int argc, char * argv[]) {
   switch(operation){
 	  
 	  case CLIENT_REQUEST_LIST_TASKS:
-	  buf2=malloc(sizeof(uint16_t));
-	  rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
+	  buf16=malloc(sizeof(uint16_t));
+	  rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE
 	  //wr=write(STDOUT_FILENO,buf2,sizeof(uint16_t));//OK
 	  //if(wr<0)goto error;
-
-	  buf3 = malloc(sizeof(uint32_t));
-	  rd=read(fd_reply,&buf3,sizeof(uint32_t));//TASKID
-	  printf("apres : %p\n",buf3);
-	  uint32_t *nb=htobe32(buf3);
-	  wr=write(fifo_request,nb,sizeof(uint32_t));
-
-	  free(buf3);
-	  printf("titi \n");
-
+	  
+	  buf32 = malloc(sizeof(uint32_t));
+	  rd=read(fd_reply,buf32,sizeof(uint32_t));//TASKID
+	  uint32_t nb=htobe32(buf32);	  
 	  int i=0;
-	  while(i<*nb){
-		  buf3=malloc(sizeof(uint64_t));
-		  rd=read(fd_reply,&buf3,sizeof(uint64_t));
-		  write(fifo_request,buf3,sizeof(uint64_t));
-		  free(buf3);
-		  
-		  buf3=malloc(sizeof(struct timing));
-		  rd=read(fd_reply,&buf3,sizeof(struct timing));
-		  char *str_buf3=malloc(sizeof(TIMING_TEXT_MIN_BUFFERSIZE+1));
-		  timing_string_from_timing(str_buf3,buf3);
-		  write(fifo_request,str_buf3,TIMING_TEXT_MIN_BUFFERSIZE);
-		  free(buf3);
+	  while(i<nb){
+		  buf64=malloc(sizeof(uint64_t));
+		  rd=read(fd_reply,buf64,sizeof(uint64_t));
+		  write(STDOUT_FILENO,buf64,sizeof(uint64_t));
+		  free(buf64);
+		  //rajouter un espace
+		  tmps=malloc(sizeof(struct timing));
+		  rd=read(fd_reply,tmps,sizeof(struct timing));
+		  char *str_buf3=malloc(sizeof(TIMING_TEXT_MIN_BUFFERSIZE));
+		  timing_string_from_timing(str_buf3,tmps);
+		  write(STDOUT_FILENO,str_buf3,TIMING_TEXT_MIN_BUFFERSIZE);
+		  write(STDOUT_FILENO," ",sizeof(char));
+		  //rajouter un espace?
+		  free(tmps);
+		  free(str_buf3);
 		  
 		  commandline *buf4 = malloc(sizeof(commandline));
-		  rd=read(fd_reply,&buf3,sizeof(commandline));
+		  rd=read(fd_reply,buf4,sizeof(commandline));
 		  for(int i=0;i<buf4->ARGC;i++){
 			  for(int y=0;y<buf4->ARGV[i].L;y++){
-				 write(fifo_request,buf4->ARGV[i].chaine[y],sizeof(char));
+				 write(STDOUT_FILENO,(buf4->ARGV[i]).chaine[y],sizeof(char));
 				}
-				write(fifo_request," ",sizeof(char));
+				write(STDOUT_FILENO," ",sizeof(char));
 		  }
 		  i++;
-		  write(fifo_request,"\n",sizeof(char));
+		  write(STDOUT_FILENO,"\n",sizeof(char));
 	  }
 	  break;
 	  
 	  
   case CLIENT_REQUEST_CREATE_TASK :
-    buf2=malloc(sizeof(uint64_t));
-    rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
-    printf("pas blok");
-    //wr=write(STDOUT_FILENO,buf2,sizeof(uint16_t));
-    //if(wr<0)goto error;
-    rd=read(fd_reply,&buf2,sizeof(uint64_t));//TASKID
-    wr=write(STDOUT_FILENO,buf2,sizeof(uint64_t));
-    //
+    buf64=malloc(sizeof(uint64_t));
+    buf16=malloc(sizeof(uint16_t));
+    rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE   
+    rd=read(fd_reply,buf64,sizeof(uint64_t));//TASKID
+    wr=write(STDOUT_FILENO,buf64,sizeof(uint64_t));
+    free(buf64);
+    free(buf16);
     break;
   case CLIENT_REQUEST_REMOVE_TASK:
-    buf2=malloc(sizeof(uint16_t));
-    rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
+    buf16=malloc(sizeof(uint16_t));
+    rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE
     //write(STDOUT_FILENO,buf2,sizeof(uint16_t));//
     uint16_t *test=SERVER_REPLY_ERROR;
-    uint16_t *hto_buf=htobe16(buf2);
+    uint16_t hto_buf=htobe16(buf16);
     if(test==hto_buf){
       rd=read(fd_reply,&hto_buf,sizeof(uint16_t));//ERRCODE
       write(STDOUT_FILENO,&hto_buf,sizeof(uint16_t));
     }
+    free(test);
+    free(buf16);
     break;
-      case CLIENT_REQUEST_GET_STDOUT:
-	buf2=malloc(sizeof(uint32_t));
-    rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
-    //write(STDOUT_FILENO,buf2,sizeof(uint16_t));
-    printf("\n");
-    uint16_t *hto_buf2=htobe16(buf2);
-    string *str_buf;
+  case CLIENT_REQUEST_GET_STDOUT:
+    buf16=malloc(sizeof(uint16_t));
+    rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE
+    uint16_t hto_buf2=htobe16(buf16);
+    string *str_buf=malloc(sizeof(struct string));;
     if(er==hto_buf2){
       rd=read(fd_reply,&hto_buf2,sizeof(uint16_t));//ERRCODE
       write(STDOUT_FILENO,&hto_buf2,sizeof(uint16_t));
-      printf("\n - \n");
     } 
     else {
-      rd=read(fd_reply,&str_buf,sizeof(string));//<string>
+      rd=read(fd_reply,str_buf,sizeof(string));//<string>
       for(int i=0;i<str_buf->L;i++){
-		write(STDOUT_FILENO,&str_buf->chaine[i],sizeof(char));
+		write(STDOUT_FILENO,str_buf->chaine[i],sizeof(char));
       }
       printf("\n");
     }
+    free(buf16);
+    free(str_buf);
     break;
-  case CLIENT_REQUEST_GET_STDERR:
-    buf2=malloc(sizeof(uint32_t));
-    rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
-    //write(STDOUT_FILENO,buf2,sizeof(uint16_t));
     
-    uint16_t *hto_buf3=htobe16(buf2);
-    string *str_buf2;
+  case CLIENT_REQUEST_GET_STDERR:
+    buf16=malloc(sizeof(uint16_t));
+    rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE 
+    
+    uint16_t hto_buf3=htobe16(buf16);
+    string *str_buf2=malloc(sizeof(struct string));
     if(er==hto_buf3){
       rd=read(fd_reply,&hto_buf3,sizeof(uint16_t));//ERRCODE
       write(STDOUT_FILENO,&hto_buf3,sizeof(uint16_t));
@@ -373,19 +352,22 @@ int main(int argc, char * argv[]) {
     else {
       rd=read(fd_reply,&str_buf2,sizeof(string));//<string>
       for(int i=0;i<str_buf2->L;i++){
-		write(STDOUT_FILENO,&str_buf2->chaine[i],sizeof(char));
+		write(STDOUT_FILENO,str_buf2->chaine[i],sizeof(char));
       }
-      
+      printf("\n");
     }
+    free(str_buf2);
+    free(buf16);
     break;
     
   case CLIENT_REQUEST_TERMINATE:
-    rd=read(fd_reply,&buf2,sizeof(uint16_t));//REPTYPE
-    write(STDOUT_FILENO,buf2,sizeof(uint16_t));
+  	buf16=malloc(sizeof(uint16_t));
+    	rd=read(fd_reply,buf16,sizeof(uint16_t));//REPTYPE
+    free(buf16);	
     break;
   }
-  printf("fin SW BUFFER =%ju\n",&buf2);
-  
+  //MANQUE EXIT CODE
+  //faudrait aussi faire des goto error au lieu des exit direct
   return EXIT_SUCCESS;
   
  error:
