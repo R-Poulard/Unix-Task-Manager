@@ -174,7 +174,7 @@ int main(int argc, char * argv[]) {
     if(h_in!=0)i+=2;
     if(m_in!=0)i+=2;
     
-    if(argc-1<1) exit(EXIT_FAILURE);
+    if(argc-1<1) goto error_request;
     conv32 = htobe32(argc-i-3);
     if(write(fd_request, &conv32, sizeof(uint32_t))<0)goto error_request;
     
@@ -188,7 +188,7 @@ int main(int argc, char * argv[]) {
   case CLIENT_REQUEST_TERMINATE://'TM' *
    
     if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
-      exit(EXIT_FAILURE);
+      goto error_request;
     }
     break;
   case CLIENT_REQUEST_REMOVE_TASK://'RM' *
