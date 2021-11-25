@@ -10,7 +10,6 @@
 #include "../include/timing.h"
 #include "../src/timing-text-io.c"
 #include <endian.h>
-#include <inttypes.h>
 #include <time.h>
 
 const char usage_info[] = "\
@@ -66,17 +65,7 @@ int main(int argc, char * argv[]) {
   char *fifo_request = "/saturnd-request-pipe";
   char *fifo_reply = "/saturnd-reply-pipe";
   
-  char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
-  str_request[strlen(pipes_directory)+strlen(fifo_request)]='\0';
-  strcat(str_request,pipes_directory);
-  strcat(str_request,fifo_request);
-  
-  int fd=open(str_request, O_CREAT | O_WRONLY);//OPEN
-  if(fd<0){
-	perror("open");
-	exit(EXIT_FAILURE);
-  }
-  
+ 
   int opt;
   char * strtoull_endp;
   //INITIALISATION
@@ -135,7 +124,19 @@ int main(int argc, char * argv[]) {
       goto error;
     }
   }
-
+  
+   char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
+  str_request[strlen(pipes_directory)+strlen(fifo_request)]='\0';
+  strcat(str_request,pipes_directory);
+  strcat(str_request,fifo_request);
+  
+  int fd_request=open(str_request, O_CREAT | O_WRONLY);//OPEN
+  free(str_request);
+  if(fd_request<0){
+	perror("open");
+	goto error;
+  }
+  
   //GESTION REQUETE
   conv = htobe16(operation);//valeur htobe16(operation)
   uint32_t conv32;//valeur htobe32(uint32_t)
@@ -143,35 +144,29 @@ int main(int argc, char * argv[]) {
   commandline command;
   switch(operation){
   case (CLIENT_REQUEST_LIST_TASKS)://'LS'
-    if(fd<0){
-       exit(EXIT_FAILURE);
-    }
-    if(write(fd,&conv,sizeof(uint16_t))<0){
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){
+       goto error_request;
     }
 
     break;
     
   case (CLIENT_REQUEST_CREATE_TASK)://'CR'
-    if(write(fd,&conv,sizeof(uint16_t))<0){
-       exit(EXIT_FAILURE);
-    }
-    if(time==NULL)exit(EXIT_FAILURE);
-    
-    t=timing_from_strings(&struct_timing,minutes_str,hours_str,daysofweek_str);//initialise struct_timing
-    if(t<0)exit(EXIT_FAILURE);
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){
+       goto error_request;
+    }       t=timing_from_strings(&struct_timing,minutes_str,hours_str,daysofweek_str);//initialise struct_timing
+    if(t<0)goto error_request;
     
     conv64 = htobe64(struct_timing.minutes);
     conv32 = htobe32(struct_timing.hours);
 
-    if(write(fd,&conv64,sizeof(uint64_t))<0){
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv64,sizeof(uint64_t))<0){
+       goto error_request;
     } 
-    if(write(fd,&conv32,sizeof(uint32_t))<0){
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv32,sizeof(uint32_t))<0){
+       goto error_request;
     } 
-    if(write(fd,&(struct_timing.daysofweek),sizeof(uint8_t))<0){
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&(struct_timing.daysofweek),sizeof(uint8_t))<0){
+       goto error_request;
     }    
     
     i=1;//In case -m -h -d option are defined
@@ -181,66 +176,69 @@ int main(int argc, char * argv[]) {
     
     if(argc-1<1) exit(EXIT_FAILURE);
     conv32 = htobe32(argc-i-3);
-    if(write(fd, &conv32, sizeof(uint32_t))<0)exit(EXIT_FAILURE);
+    if(write(fd_request, &conv32, sizeof(uint32_t))<0)goto error_request;
     
     for(int j=0;j<argc-i-3;j++){
 	uint32_t taille = strlen(argv[j+i+3]);//taille de argv[pos]
 	conv32 = htobe32(taille);//htobe32
-	if(write(fd,&conv32, sizeof(uint32_t))<0)exit(EXIT_FAILURE);//ecriture de la taille du string
-	if(write(fd,argv[j+i+3],taille)<0)exit(EXIT_FAILURE);//ecriture du string
+	if(write(fd_request,&conv32, sizeof(uint32_t))<0)goto error_request;//ecriture de la taille du string
+	if(write(fd_request,argv[j+i+3],taille)<0)goto error_request;//ecriture du string
     }
     break;
   case CLIENT_REQUEST_TERMINATE://'TM' *
-    if(fd<0){
-      exit(EXIT_FAILURE);
-    }
-    if(write(fd,&conv,sizeof(uint16_t))<0){//OPERATION
+   
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
       exit(EXIT_FAILURE);
     }
     break;
   case CLIENT_REQUEST_REMOVE_TASK://'RM' *
     conversion = htobe64(taskid);
-    if(write(fd,&conv,sizeof(uint16_t))<0){//OPERATION
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
+       goto error_request;
     }
-    if(write(fd,&conversion,sizeof(uint64_t))<0){//TASKID
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conversion,sizeof(uint64_t))<0){//TASKID
+       goto error_request;
     }
     break;
   case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES://'TX' *
      conversion = htobe64(taskid);
-     if(write(fd,&conv,sizeof(uint16_t))<0){//OPERATION
-       exit(EXIT_FAILURE);
+     if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
+       goto error_request;
     }
-    if(write(fd,&conversion,sizeof(uint64_t))<0){//TASKID
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conversion,sizeof(uint64_t))<0){//TASKID
+       goto error_request;
     }
     break;
   case CLIENT_REQUEST_GET_STDOUT://'SO' *
     conversion = htobe64(taskid);
-    if(write(fd,&conv,sizeof(uint16_t))<0){//OPERATION
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
+       goto error_request;
     }
-    if(write(fd,&conversion,sizeof(uint64_t))<0){//TASKID
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conversion,sizeof(uint64_t))<0){//TASKID
+       goto error_request;
     }
     break;
   case CLIENT_REQUEST_GET_STDERR://'SE' *
     conversion = htobe64(taskid);
-    if(write(fd,&conv,sizeof(uint16_t))<0){//OPERATION
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conv,sizeof(uint16_t))<0){//OPERATION
+       goto error_request;
     }
-    if(write(fd,&conversion,sizeof(uint64_t))<0){//TASKID
-       exit(EXIT_FAILURE);
+    if(write(fd_request,&conversion,sizeof(uint64_t))<0){//TASKID
+       goto error_request;
     }
     break;
   }
-  //FIN GESTION REQUETE
-  
+  ///////////////////////::JARRIVE PAS ////////////////////
   int fd_reply=open("./run/pipes/saturnd-reply-pipe",O_RDONLY);
+  
+  //free(str_reply) <-pour free la chaine passé en argument
+  if(fd_reply<0){
+     goto error_request;
+  }
+  //NE PAS ENLEVER LE IF
   struct timing tmps;
   char *time_buf=malloc(TIMING_TEXT_MIN_BUFFERSIZE);
-  if(time_buf==NULL)exit(8);
+  if(time_buf==NULL)goto error_reply;
   
   uint64_t buf64tmp;
   uint32_t buf32tmp;
@@ -256,18 +254,18 @@ int main(int argc, char * argv[]) {
   switch(operation){	  
 	case (CLIENT_REQUEST_LIST_TASKS):
 	rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-	if(rd<0)exit(1);
+	if(rd<0)goto error_reply;
 	buf16tmp=htobe16(buf16tmp);//htobe16
 	
 	rd=read(fd_reply,&buf32tmp,sizeof(uint32_t));//NBTASKS
 
-	if(rd<0)exit(2);
+	if(rd<0)goto error_reply;
 	buf32tmp=htobe32(buf32tmp);//htobe32
 
 	int i=0;
 	while(i<buf32tmp){
 	rd=read(fd_reply,&buf64tmp,sizeof(uint64_t));//TASKID
-	if(rd<0)exit(3);
+	if(rd<0)goto error_reply;
 	buf64tmp=htobe64(buf64tmp);
 	printf("%lu: ",buf64tmp);//PRINT on STDOUT // uint64_t
 
@@ -276,11 +274,11 @@ int main(int argc, char * argv[]) {
 	uint8_t jours;//JOURS
 	
 	rd=read(fd_reply,&min,sizeof(uint64_t));//ecrit dans MINUTES 
-	if(rd<0)exit(5);
+	if(rd<0)goto error_reply;
 	rd=read(fd_reply,&heure,sizeof(uint32_t));//ecrit dans HEURES
-	if(rd<0)exit(6);
+	if(rd<0)goto error_reply;
 	rd=read(fd_reply,&jours,sizeof(uint8_t));//ecrit dans JOURS
-	if(rd<0)exit(7);
+	if(rd<0)goto error_reply;
 	
 	min=htobe64(min);//htobe64
 	heure=htobe32(heure);//htobe32
@@ -296,7 +294,7 @@ int main(int argc, char * argv[]) {
         uint32_t size_str;//STRING.LENGTH
 
         rd=read(fd_reply,&size,sizeof(uint32_t));//ARGC ecrit dans size
-        if(rd<0)exit(9);
+        if(rd<0)goto error_reply;
         size=htobe32(size);
 	command.ARGC=size;
 	
@@ -304,12 +302,13 @@ int main(int argc, char * argv[]) {
 
         for(int k=0;k<size;k++){
 		rd=read(fd_reply,&size_str,sizeof(uint32_t));//STRING.LENGTH ecrit dans size_str
+		if(rd<0)goto error_reply;
 		size_str=htobe32(size_str);
 		command.ARGV[k].L=size_str;
         	command.ARGV[k].chaine=malloc(size_str*sizeof(char));
         
 		rd=read(fd_reply,&command.ARGV[k].chaine,sizeof(char)*size_str);
-		if(rd<0)exit(10);
+		if(rd<0)goto error_reply;
 
 		printf("%.*s",(sizeof(char)*size_str),&command.ARGV[k].chaine);//PRINT on STDOUT //nom de la commande
         	if(k<size_str-1)printf(" ");//ESPACE a chaque commandes
@@ -321,53 +320,53 @@ int main(int argc, char * argv[]) {
 	 
   case (CLIENT_REQUEST_CREATE_TASK) :
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(11);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16
     
     rd=read(fd_reply,&buf64tmp,sizeof(uint64_t));//TASKID
-    if(rd<0)exit(12);
+    if(rd<0)goto error_reply;
     
     buf64tmp = htobe64(buf64tmp);//htobe
-    printf("%"PRIu64 "\n",buf64tmp);//PRINT on STDOUT //TASKID
+    printf("%lu\n",buf64tmp);//PRINT on STDOUT //TASKID
     break;
  
   case CLIENT_REQUEST_REMOVE_TASK:
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(13);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16
     
     if(SERVER_REPLY_ERROR==buf16tmp){//ERRNO
       rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//ERRCODE
-      if(rd<0)exit(14);
+      if(rd<0)goto error_reply;
       buf16tmp=htobe16(buf16tmp);//htobe16
-      
-      if(write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t))<0)exit(14);//PRINT on STDOUT //ERRCODE
-      exit(1);
+      printf("Erreur lors de la requete -r:");
+      write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t));//PRINT on STDOUT //ERRCODE
+      goto error_reply;
     }
     break;
     
   case CLIENT_REQUEST_GET_STDOUT:
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(15);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16
     
     if(SERVER_REPLY_ERROR==buf16tmp){//ERRNO
       rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//ERRCODE
-      if(rd<0)exit(16);
+      if(rd<0)goto error_reply;
       buf16tmp=htobe16(buf16tmp);//htobe16
-      
-      if(write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t))<0)exit(16);//PRINT on STDOUT //ERRCODE
-      exit(1);
+      printf("Erreur lors de la requete -o:");
+      write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t));//PRINT on STDOUT //ERRCODE
+      goto error_reply;
     } 
     else {
       rd=read(fd_reply,&buf32tmp,sizeof(uint32_t));//STRING.LENGTH
-      if(rd<0)exit(17);
+      if(rd<0)goto error_reply;
       buf32tmp=htobe32(buf32tmp);
       	
       cmd_name = malloc(buf32tmp);//STRING
 
       rd=read(fd_reply,cmd_name,sizeof(char)*buf32tmp);//ecrit STRING dans 
-      if(rd<0)exit(18);
+      if(rd<0)goto error_reply;
 
       printf("%.*s",(sizeof(char)*buf32tmp),cmd_name);
     }
@@ -376,26 +375,26 @@ int main(int argc, char * argv[]) {
     
   case CLIENT_REQUEST_GET_STDERR:
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(19);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16
     
     if(SERVER_REPLY_ERROR==buf16tmp){//ERRNO
       rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//ERRCODE
-      if(rd<0)exit(20);
+      if(rd<0)goto error_reply;
       buf16tmp=htobe16(buf16tmp);//htobe16
-      
-      if(write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t))<0)exit(20);//PRINT on STDOUT //ERRCODE
-      exit(1);
+      printf("Erreur lors de la requete -e:");
+      write(STDOUT_FILENO,&buf16tmp,sizeof(uint16_t));//PRINT on STDOUT //ERRCODE
+      goto error_reply;
     } 
     else {
       rd=read(fd_reply,&buf32tmp,sizeof(uint32_t));//STRING.LENGTH
-      if(rd<0)exit(21);
+      if(rd<0)goto error_reply;
       buf32tmp=htobe32(buf32tmp);//htobe32
 	
       cmd_name = malloc(buf32tmp);//STRING
        
       rd=read(fd_reply,cmd_name,sizeof(char)*buf32tmp);
-      if(rd<0)exit(22);
+      if(rd<0)goto error_reply;
       printf("%.*s",(sizeof(char)*buf32tmp),cmd_name);//PRINT on STDOUT //nom de la commande
     }
     free(cmd_name);
@@ -403,29 +402,29 @@ int main(int argc, char * argv[]) {
     
   case CLIENT_REQUEST_TERMINATE:
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(23);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16	
     break;
     
   case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES:
     rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//REPTYPE
-    if(rd<0)exit(24);
+    if(rd<0)goto error_reply;
     buf16tmp=htobe16(buf16tmp);//htobe16
     if(SERVER_REPLY_ERROR==buf16tmp){//ERRNO
       rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//ERRCODE
-      if(rd<0)exit(25);
-      printf("%hu",buf16tmp);
-      exit(1);
+      if(rd<0)goto error_reply;
+      printf("Erreur dans la requete -x: %hu",buf16tmp);
+      goto error_reply;
     } else {	
 	rd=read(fd_reply,&buf32tmp,sizeof(uint32_t));//NBTASKS
-	if(rd<0)exit(26);
+	if(rd<0)goto error_reply;
 	buf32tmp=htobe32(buf32tmp);//NBTASKS
 
 	i=0;
 	while(i<buf32tmp){
 	int64_t timing;
 	rd=read(fd_reply,&timing,sizeof(int64_t));//TIME
-	if(rd<0)exit(27);
+	if(rd<0)goto error_reply;
 
 	timing=htobe64(timing);//htobe64
 	time_t realtime= (time_t)(timing/1000000);//
@@ -435,23 +434,31 @@ int main(int argc, char * argv[]) {
     
         char buffer[50];
         strftime( buffer, 50, "%Y-%m-%d %H:%M:%S", pTime );
-        printf( "%s ", buffer );
+        printf("%s ", buffer );
     
 	rd=read(fd_reply,&buf16tmp,sizeof(uint16_t));//TASKID
-	if(rd<0)exit(3);
+	if(rd<0)goto error_reply;
 	buf16tmp=htobe16(buf16tmp);
-	printf("%"PRIu16 "\n",buf16tmp);
+	printf("%hu\n",buf16tmp);
 	i++;//INCREMENTATION
 	}
     }
     break;
   }
   free(time_buf);
+  close(fd_reply);
+  close(fd_request);
+  
   //MANQUE EXIT CODE
   
   //faudrait aussi faire des goto error au lieu des exit direct
   return EXIT_SUCCESS;
   
+ error_reply:
+  free(time_buf);
+  close(fd_reply);
+ error_request:
+  close(fd_request);
  error:
   if (errno != 0) perror("main");
   free(pipes_directory);
