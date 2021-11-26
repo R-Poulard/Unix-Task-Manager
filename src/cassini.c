@@ -47,7 +47,8 @@ int main(int argc, char * argv[]) {
   char * minutes_str = "*";
   char * hours_str = "*";
   char * daysofweek_str = "*";
-  char * pipes_directory = "./run/pipes/";
+  char * username_str = getlogin();
+  char * pipes_directory;
   
   int d_in=0;//bool if daysofweek is declared
   int m_in=0;//bool if minutes is declared
@@ -65,6 +66,10 @@ int main(int argc, char * argv[]) {
   char *fifo_request = "/saturnd-request-pipe";
   char *fifo_reply = "/saturnd-reply-pipe";
   
+  pipes_directory = malloc(256);//creation of the default PIPES_DIR
+  strcpy(pipes_directory, "/tmp/");
+  strcat(pipes_directory, username_str);
+  strcat(pipes_directory, "/saturnd/pipes");
  
   int opt;
   char * strtoull_endp;
@@ -124,19 +129,19 @@ int main(int argc, char * argv[]) {
       goto error;
     }
   }
-  
-   char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
+
+  char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
   str_request[strlen(pipes_directory)+strlen(fifo_request)]='\0';
   strcat(str_request,pipes_directory);
   strcat(str_request,fifo_request);
   
-  int fd_request=open(str_request, O_CREAT | O_WRONLY);//OPEN
+  int fd_request=open(str_request,  O_WRONLY);//OPEN
   free(str_request);
   if(fd_request<0){
 	perror("open");
 	goto error;
   }
-  
+
   //GESTION REQUETE
   conv = htobe16(operation);//valeur htobe16(operation)
   uint32_t conv32;//valeur htobe32(uint32_t)
@@ -229,12 +234,20 @@ int main(int argc, char * argv[]) {
     break;
   }
   ///////////////////////::JARRIVE PAS ////////////////////
-  int fd_reply=open("./run/pipes/saturnd-reply-pipe",O_RDONLY);
+  //int fd_reply=open("./run/pipes/saturnd-reply-pipe",O_RDONLY);
   
-  //free(str_reply) <-pour free la chaine passé en argument
+  char *str_reply = malloc(strlen(pipes_directory)+strlen(fifo_reply)+1);
+  str_request[strlen(pipes_directory)+strlen(fifo_reply)]='\0';
+  strcat(str_reply,pipes_directory);
+  strcat(str_reply,fifo_reply);
+  
+  int fd_reply=open(str_reply,  O_RDONLY);//OPEN
+
+  free(str_reply); //<-pour free la chaine passé en argument
   if(fd_reply<0){
      goto error_request;
   }
+  
   //NE PAS ENLEVER LE IF
   struct timing tmps;
   char *time_buf=malloc(TIMING_TEXT_MIN_BUFFERSIZE);
@@ -296,7 +309,7 @@ int main(int argc, char * argv[]) {
         rd=read(fd_reply,&size,sizeof(uint32_t));//ARGC ecrit dans size
         if(rd<0)goto error_reply;
         size=htobe32(size);
-	command.ARGC=size;
+		command.ARGC=size;
 	
         command.ARGV=malloc(size*sizeof(string));
 
@@ -310,9 +323,11 @@ int main(int argc, char * argv[]) {
 		rd=read(fd_reply,&command.ARGV[k].chaine,sizeof(char)*size_str);
 		if(rd<0)goto error_reply;
 
-		printf("%.*s",(sizeof(char)*size_str),&command.ARGV[k].chaine);//PRINT on STDOUT //nom de la commande
+		printf("%.*s",(int)(sizeof(char)*size_str),&command.ARGV[k].chaine);//PRINT on STDOUT //nom de la commande
         	if(k<size_str-1)printf(" ");//ESPACE a chaque commandes
         }
+      
+		free(command.ARGV);
         i++;//INCREMENTE
         printf("\n");//SAUT DE LIGNE
 	}
@@ -368,7 +383,7 @@ int main(int argc, char * argv[]) {
       rd=read(fd_reply,cmd_name,sizeof(char)*buf32tmp);//ecrit STRING dans 
       if(rd<0)goto error_reply;
 
-      printf("%.*s",(sizeof(char)*buf32tmp),cmd_name);
+      printf("%.*s",(int)(sizeof(char)*buf32tmp),cmd_name);
     }
     free(cmd_name);
     break;
@@ -395,7 +410,7 @@ int main(int argc, char * argv[]) {
        
       rd=read(fd_reply,cmd_name,sizeof(char)*buf32tmp);
       if(rd<0)goto error_reply;
-      printf("%.*s",(sizeof(char)*buf32tmp),cmd_name);//PRINT on STDOUT //nom de la commande
+      printf("%.*s",(int)(sizeof(char)*buf32tmp),cmd_name);//PRINT on STDOUT //nom de la commande
     }
     free(cmd_name);
     break;
@@ -445,6 +460,8 @@ int main(int argc, char * argv[]) {
     }
     break;
   }
+  //FREE
+  free(pipes_directory);
   free(time_buf);
   close(fd_reply);
   close(fd_request);
