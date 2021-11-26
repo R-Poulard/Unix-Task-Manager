@@ -4,5 +4,5 @@ cassini:src/cassini.o
 
 cassini.o:src/cassini.c include/cassini.h
 	gcc -c src/cassini.c
-clean:
+distclean:
 	rm -f src/*.o
