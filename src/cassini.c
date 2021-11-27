@@ -131,8 +131,7 @@ int main(int argc, char * argv[]) {
   }
 
   char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
-  str_request[strlen(pipes_directory)+strlen(fifo_request)]='\0';
-  strcat(str_request,pipes_directory);
+  strcpy(str_request,pipes_directory);
   strcat(str_request,fifo_request);
   
   int fd_request=open(str_request,  O_WRONLY);//OPEN
@@ -237,8 +236,7 @@ int main(int argc, char * argv[]) {
   //int fd_reply=open("./run/pipes/saturnd-reply-pipe",O_RDONLY);
   
   char *str_reply = malloc(strlen(pipes_directory)+strlen(fifo_reply)+1);
-  str_request[strlen(pipes_directory)+strlen(fifo_reply)]='\0';
-  strcat(str_reply,pipes_directory);
+  strcpy(str_reply,pipes_directory);
   strcat(str_reply,fifo_reply);
   
   int fd_reply=open(str_reply,  O_RDONLY);//OPEN
@@ -320,14 +318,15 @@ int main(int argc, char * argv[]) {
 		command.ARGV[k].L=size_str;
         	command.ARGV[k].chaine=malloc(size_str*sizeof(char));
         
-		rd=read(fd_reply,&command.ARGV[k].chaine,sizeof(char)*size_str);
+		rd=read(fd_reply,(&command.ARGV[k])->chaine,sizeof(char)*size_str);
 		if(rd<0)goto error_reply;
 
-		printf("%.*s",(int)(sizeof(char)*size_str),&command.ARGV[k].chaine);//PRINT on STDOUT //nom de la commande
+		printf("%.*s",(int)(sizeof(char)*size_str),(&command.ARGV[k])->chaine);//PRINT on STDOUT //nom de la commande
         	if(k<size_str-1)printf(" ");//ESPACE a chaque commandes
+		free((&command.ARGV[k])->chaine);
         }
-      
-		free(command.ARGV);
+
+	free(command.ARGV);
         i++;//INCREMENTE
         printf("\n");//SAUT DE LIGNE
 	}
@@ -384,8 +383,9 @@ int main(int argc, char * argv[]) {
       if(rd<0)goto error_reply;
 
       printf("%.*s",(int)(sizeof(char)*buf32tmp),cmd_name);
+      free(cmd_name);
     }
-    free(cmd_name);
+    
     break;
     
   case CLIENT_REQUEST_GET_STDERR:
@@ -411,8 +411,9 @@ int main(int argc, char * argv[]) {
       rd=read(fd_reply,cmd_name,sizeof(char)*buf32tmp);
       if(rd<0)goto error_reply;
       printf("%.*s",(int)(sizeof(char)*buf32tmp),cmd_name);//PRINT on STDOUT //nom de la commande
+      free(cmd_name);
     }
-    free(cmd_name);
+    
     break;
     
   case CLIENT_REQUEST_TERMINATE:
