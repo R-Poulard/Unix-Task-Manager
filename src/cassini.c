@@ -42,123 +42,35 @@ const char usage_info[] = "\
     string *ARGV;
   }commandline;
 //FIN STRUCTURES
+int wr_type_taskid(int fd_request,uint64_t taskid, char * buffer,unsigned int memindex){
+  memcpy(buffer+memindex,&taskid,sizeof(uint64_t));//TASKID
+  memindex+=sizeof(uint64_t);
+  if(write(fd_request,buffer,memindex)<0){//WRITE BUFFER
+     return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
 
-int main(int argc, char * argv[]) {
-  errno = 0;
+int read_operation(int argc,char **argv,uint64_t taskid,uint16_t operation,int fd_request,char * minutes_str, char * hours_str,char * daysofweek_str, int p_in, int d_in , int h_in,int m_in){
+  //GESTION REQUETE
   
-  char * minutes_str = "*";
-  char * hours_str = "*";
-  char * daysofweek_str = "*";
-  char * username_str = getlogin();
-  char * pipes_directory;
-
-  int p_in=0;//bool if pipe is declared
-  int d_in=0;//bool if daysofweek is declared
-  int m_in=0;//bool if minutes is declared
-  int h_in=0;//bool if hours is declared
-
-  uint16_t operation;//operation
-  uint16_t conv;//htob16(operation) //in write request
-  uint64_t taskid;//id de la tâche //in write request
   uint64_t conversion;//htobe(taskid) //in write request
   
-  struct timing struct_timing;//timing //in request
-  int t;//timing from strings value
-  int i;//indice to commandline
-  
-  char *fifo_request = "/saturnd-request-pipe";
-  char *fifo_reply = "/saturnd-reply-pipe";
-  
-  int opt;
-  char * strtoull_endp;
-  //INITIALISATION
-  while ((opt = getopt(argc, argv, "hlcqm:H:d:p:r:x:o:e:")) != -1) {
-    switch (opt) {
-    case 'm':
-      minutes_str = optarg;
-      m_in=1;
-      break;
-    case 'H':
-      hours_str = optarg;
-      h_in=1;
-      break;
-    case 'd':
-      daysofweek_str = optarg;
-      d_in=1;
-      break;
-    case 'p':
-      pipes_directory = strdup(optarg);
-      if (pipes_directory == NULL) goto error;
-      p_in=2;
-      break;
-    case 'l':
-      operation = CLIENT_REQUEST_LIST_TASKS;
-      break;
-    case 'c':
-      operation = CLIENT_REQUEST_CREATE_TASK;
-      break;
-    case 'q':
-      operation = CLIENT_REQUEST_TERMINATE;
-      break;
-    case 'r':
-      operation = CLIENT_REQUEST_REMOVE_TASK;
-      taskid = strtoull(optarg, &strtoull_endp, 10);
-      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
-      break;
-    case 'x':
-      operation = CLIENT_REQUEST_GET_TIMES_AND_EXITCODES;
-      taskid = strtoull(optarg, &strtoull_endp, 10);
-      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
-      break;
-    case 'o':
-      operation = CLIENT_REQUEST_GET_STDOUT;
-      taskid = strtoull(optarg, &strtoull_endp, 10);
-      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
-      break;
-    case 'e':
-      operation = CLIENT_REQUEST_GET_STDERR;
-      taskid = strtoull(optarg, &strtoull_endp, 10);
-      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
-      break;
-    case 'h':
-      printf("%s", usage_info);
-      return 0;
-    case '?':
-      fprintf(stderr, "%s", usage_info);
-      goto error;
-    }
-  }
-
-  if(pipes_directory==NULL){//In case the directory is not defined by option -p
-    pipes_directory = malloc(256);//creation of the default PIPES_DIR
-    strcpy(pipes_directory, "/tmp/");
-    strcat(pipes_directory, username_str);
-    strcat(pipes_directory, "/saturnd/pipes");
-  }
-  
-  char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
-  strcpy(str_request,pipes_directory);
-  strcat(str_request,fifo_request);
-  
-  int fd_request=open(str_request,  O_WRONLY);//OPEN
-  free(str_request);
-  if(fd_request<0){
-	perror("open");
-	goto error;
-  }
-
-  //GESTION REQUETE
-  conv = htobe16(operation);//value htobe16(operation)
+  uint16_t conv = htobe16(operation);//value htobe16(operation)
   uint32_t conv32;//value htobe32(uint32_t)
   uint64_t conv64;//value htobe64(uint64_t)
   
   commandline command;
+  struct timing struct_timing;//timing //in request
+    
+  int t;//timing from strings value
+  int i;//indice to commandline
   
   char *buffer = malloc(BUFSIZE);
   memcpy(buffer,&conv,sizeof(uint16_t));//copy of the OPERATION in buffer
   unsigned int memindex=sizeof(uint16_t);//size of what we wrote in buffer
   
-  switch(operation){
+switch(operation){
   case (CLIENT_REQUEST_LIST_TASKS)://'LS'
     if(write(fd_request,buffer,memindex)<0){
        goto error_request;
@@ -210,49 +122,30 @@ int main(int argc, char * argv[]) {
     }
     break;
   case CLIENT_REQUEST_REMOVE_TASK://'RM' *
-    conversion = htobe64(taskid);
-    memcpy(buffer+memindex,&conversion,sizeof(uint64_t));//TASKID
-    memindex+=sizeof(uint64_t);
-    if(write(fd_request,buffer,memindex)<0){//WRITE BUFFER
-       goto error_request;
-    }
+    if(wr_type_taskid(fd_request,htobe64(taskid),buffer,memindex)==EXIT_FAILURE)goto error_request;
     break;
   case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES://'TX' *
-     conversion = htobe64(taskid);
-     memcpy(buffer+memindex,&conversion,sizeof(uint64_t));//TASKID
-     memindex+=sizeof(uint64_t);
-     if(write(fd_request,buffer,memindex)<0){//WRITE BUFFER
-       goto error_request;
-    }
+    if(wr_type_taskid(fd_request,htobe64(taskid),buffer,memindex)==EXIT_FAILURE)goto error_request;
     break;
   case CLIENT_REQUEST_GET_STDOUT://'SO' *
-    conversion = htobe64(taskid);
-    memcpy(buffer+memindex,&conversion,sizeof(uint64_t));//TASKID
-    memindex+=sizeof(uint64_t);
-    if(write(fd_request,buffer,memindex)<0){//WRITE BUFFER
-      goto error_request;
-    }
+    if(wr_type_taskid(fd_request,htobe64(taskid),buffer,memindex)==EXIT_FAILURE)goto error_request;
     break;
   case CLIENT_REQUEST_GET_STDERR://'SE' *
-    conversion = htobe64(taskid);
-    memcpy(buffer+memindex,&conversion,sizeof(uint64_t));//TASKID
-    memindex+=sizeof(uint64_t);
-    if(write(fd_request,buffer,memindex)<0){//WRITE BUFFER
-      goto error_request;
-    }
+    if(wr_type_taskid(fd_request,htobe64(taskid),buffer,memindex)==EXIT_FAILURE)goto error_request;
     break;
   }
+  free(buffer);
+  return EXIT_SUCCESS;
+  error_request:
+  close(fd_request);
+  error:
+  if (errno != 0) perror("main");
   
-  char *str_reply = malloc(strlen(pipes_directory)+strlen(fifo_reply)+1);
-  strcpy(str_reply,pipes_directory);
-  strcat(str_reply,fifo_reply);
-  
-  int fd_reply=open(str_reply,  O_RDONLY);//OPEN
+  free(buffer);
+  return EXIT_FAILURE;
+}
 
-  free(str_reply); //free la chaine passé en argument
-  if(fd_reply<0){
-     goto error_request;
-  }
+int write_operation(uint16_t operation,int fd_reply){
   
   struct timing tmps;
   char *time_buf=malloc(TIMING_TEXT_MIN_BUFFERSIZE);
@@ -268,6 +161,8 @@ int main(int argc, char * argv[]) {
 
   int rd;//READ value
   int wr;//WRITE value
+  
+  commandline command;
   
   switch(operation){	  
   case (CLIENT_REQUEST_LIST_TASKS):
@@ -329,7 +224,7 @@ int main(int argc, char * argv[]) {
 	    if(rd<0)goto error_reply;
 	    
 	    printf("%.*s",(int)(sizeof(char)*size_str),(&command.ARGV[k])->chaine);//PRINT on STDOUT //nom de la commande
-	    if(k<size_str-1)printf(" ");//ESPACE a chaque commandes
+	    printf(" ");//ESPACE a chaque commandes
 	    free((&command.ARGV[k])->chaine);
 	  }
 	  
@@ -465,10 +360,130 @@ int main(int argc, char * argv[]) {
     }
     break;
   }
+  free(time_buf);
+  return EXIT_SUCCESS;
+  error_reply:
+  free(time_buf);
+  return EXIT_FAILURE;
+}
+int main(int argc, char * argv[]) {
+  errno = 0;
+  
+  char * minutes_str = "*";
+  char * hours_str = "*";
+  char * daysofweek_str = "*";
+  char * username_str = getlogin();
+  char * pipes_directory;
+
+  int p_in=0;//bool if pipe is declared
+  int d_in=0;//bool if daysofweek is declared
+  int m_in=0;//bool if minutes is declared
+  int h_in=0;//bool if hours is declared
+
+  uint16_t operation;//operation
+  uint64_t taskid;//id de la tâche //in write request
+  
+  char *fifo_request = "/saturnd-request-pipe";
+  char *fifo_reply = "/saturnd-reply-pipe";
+  
+  int opt;
+  char * strtoull_endp;
+  //INITIALISATION
+  while ((opt = getopt(argc, argv, "hlcqm:H:d:p:r:x:o:e:")) != -1) {
+    switch (opt) {
+    case 'm':
+      minutes_str = optarg;
+      m_in=1;
+      break;
+    case 'H':
+      hours_str = optarg;
+      h_in=1;
+      break;
+    case 'd':
+      daysofweek_str = optarg;
+      d_in=1;
+      break;
+    case 'p':
+      pipes_directory = strdup(optarg);
+      if (pipes_directory == NULL) goto error;
+      p_in=2;
+      break;
+    case 'l':
+      operation = CLIENT_REQUEST_LIST_TASKS;
+      break;
+    case 'c':
+      operation = CLIENT_REQUEST_CREATE_TASK;
+      break;
+    case 'q':
+      operation = CLIENT_REQUEST_TERMINATE;
+      break;
+    case 'r':
+      operation = CLIENT_REQUEST_REMOVE_TASK;
+      taskid = strtoull(optarg, &strtoull_endp, 10);
+      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
+      break;
+    case 'x':
+      operation = CLIENT_REQUEST_GET_TIMES_AND_EXITCODES;
+      taskid = strtoull(optarg, &strtoull_endp, 10);
+      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
+      break;
+    case 'o':
+      operation = CLIENT_REQUEST_GET_STDOUT;
+      taskid = strtoull(optarg, &strtoull_endp, 10);
+      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
+      break;
+    case 'e':
+      operation = CLIENT_REQUEST_GET_STDERR;
+      taskid = strtoull(optarg, &strtoull_endp, 10);
+      if (strtoull_endp == optarg || strtoull_endp[0] != '\0') goto error;
+      break;
+    case 'h':
+      printf("%s", usage_info);
+      return 0;
+    case '?':
+      fprintf(stderr, "%s", usage_info);
+      goto error;
+    }
+  }
+
+  if(pipes_directory==NULL){//In case the directory is not defined by option -p
+    pipes_directory = malloc(256);//creation of the default PIPES_DIR
+    strcpy(pipes_directory, "/tmp/");
+    strcat(pipes_directory, username_str);
+    strcat(pipes_directory, "/saturnd/pipes");
+  }
+  
+  char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
+  strcpy(str_request,pipes_directory);
+  strcat(str_request,fifo_request);
+  
+  int fd_request=open(str_request,  O_WRONLY);//OPEN
+  free(str_request);
+  if(fd_request<0){
+	perror("open");
+	goto error;
+  }
+
+  //GESTION REQUETE
+  if(read_operation(argc,argv,taskid,operation,fd_request,minutes_str,hours_str,daysofweek_str,p_in,d_in,h_in,m_in)==EXIT_FAILURE)
+  goto error_request;
+  
+  char *str_reply = malloc(strlen(pipes_directory)+strlen(fifo_reply)+1);
+  strcpy(str_reply,pipes_directory);
+  strcat(str_reply,fifo_reply);
+  
+  int fd_reply=open(str_reply,  O_RDONLY);//OPEN
+
+  free(str_reply); //free la chaine passé en argument
+  if(fd_reply<0){
+     goto error_request;
+  }
+  
+  if(write_operation(operation,fd_reply)==EXIT_FAILURE)goto error_reply;
+  
   //FREE
   free(pipes_directory);
-  free(buffer);
-  free(time_buf);
+  
   close(fd_reply);
   close(fd_request);
   
@@ -476,14 +491,12 @@ int main(int argc, char * argv[]) {
   return EXIT_SUCCESS;
   
  error_reply:
-  free(time_buf);
   close(fd_reply);
  error_request:
   close(fd_request);
  error:
   if (errno != 0) perror("main");
   free(pipes_directory);
-  free(buffer);
   pipes_directory = NULL;
   return EXIT_FAILURE;
 }
