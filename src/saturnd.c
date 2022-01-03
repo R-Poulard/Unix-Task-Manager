@@ -152,15 +152,18 @@ int main(){
   
   char * buftaskmax = malloc(50);//MALLOC
   strcpy(buftaskmax,pathtasks_saturnd);
+  strcat(buftaskmax,"/");
   strcat(buftaskmax,"taskid_max");
   int taskmax=open(buftaskmax,O_CREAT | O_EXCL | O_RDWR );
   //if(taskmax<0 && errno!=EEXIST)goto;
 
   pid_t pid = fork();
   //if(pid<0)goto;
+  		
+
   if(pid>0){//GRAND PERE
-    sleep(30);
-    
+    //sleep(30);
+    printf("AVANT\n");
     int fd_request=open(fifo_request,O_RDONLY);
     int fd_reply=open(fifo_reply,O_WRONLY);
     
@@ -173,8 +176,14 @@ int main(){
     char * buf;
     int fd_buftask;
     struct dirent *  struct_dir;
-    
-    while(read(fd_request,&u16,sizeof(uint16_t))==0 && out==0){
+    printf("OUT\n");
+    int rd;
+    while(out==0){
+		rd = read(fd_request,&u16,sizeof(uint16_t));
+		if(rd>0){
+			printf("IN\n");
+		printf("rd %d\n", rd);
+		
       u16=htobe16(u16);
       switch (u16){
         case CLIENT_REQUEST_REMOVE_TASK:
@@ -226,31 +235,53 @@ int main(){
     	}
         break;
         case CLIENT_REQUEST_CREATE_TASK:
-          fd_buftask=open(buftaskmax,O_RDONLY | O_WRONLY);//exclusifs je crois O_RDWR
+          fd_buftask=open(buftaskmax,O_RDWR);//exclusifs je crois O_RDWR
           
           if(fd_buftask==-1){
             taskmax_name = (unsigned long) 1;
-            open(buftaskmax, O_CREAT | O_WRONLY);
+            printf("ICI \n");
+            fd_buftask = open(buftaskmax, O_CREAT | O_WRONLY,0777);
+            chmod(buftaskmax, 0777);
+                        printf("IF av av :%lu\n", taskmax_name);
+
             write(fd_buftask,&taskmax_name,sizeof(uint64_t));
+            close(fd_buftask);
           } else {
             read(fd_buftask,&taskmax_name,sizeof(uint64_t));
+            printf("ELSE av av :%lu\n", taskmax_name);
+            
+            printf("ELSE av :%lu\n", taskmax_name);
             taskmax_name=taskmax_name+(unsigned long) 1;
+            
+
+            
+            printf("ELSE  ap:%lu\n", taskmax_name);
             write(fd_buftask,&taskmax_name,sizeof(uint64_t));
+            close(fd_buftask);
           }
           //cr
+          
+          printf("%lu",taskmax_name);
+
           char * pathtasks_file=malloc(100);//MALLOC
+          
+          //ulltoa(taskmax_name, task_char,2);
           strcpy(pathtasks_file,pathtasks);
-          strcat(pathtasks_file,taskmax_name);
+          snprintf(pathtasks_file + strlen(pathtasks), 100,"%lu",taskmax_name );
+
             
           char * pathtasks_timexec=malloc(100);//MALLOC
           strcpy(pathtasks_timexec,pathtasks_file);
+          strcat(pathtasks_timexec,"/");
           strcat(pathtasks_timexec,CMD_TEXEC);
             
           char * pathtasks_argv=malloc(100);//MALLOC
           strcpy(pathtasks_argv,pathtasks_file);
+          strcat(pathtasks_argv,"/");
           strcat(pathtasks_argv,CMD_ARGV);
             
           mkdir(pathtasks_file,0751);//file
+          
           int fd_timexec=open(pathtasks_timexec,O_CREAT | O_WRONLY);//file
           int fd_argv=open(pathtasks_argv,O_CREAT | O_WRONLY);
 
@@ -260,7 +291,7 @@ int main(){
           write(fd_timexec,temps,sizeof(uint64_t)+sizeof(uint32_t)+sizeof(uint8_t));//WRITE
             
           //COMMAND
-            
+         
           read(fd_request,&u32,sizeof(uint32_t));//READ argc
           u32 = htobe32(u32);
           write(fd_argv,&u32,sizeof(uint32_t));
@@ -272,17 +303,28 @@ int main(){
 	      
 	    char * str_argv=malloc(sizeof(char)*taille);
 	    read(fd_request,str_argv,sizeof(char)*taille);//READ argv[i] size
-	      
+	                
+
 	    write(fd_argv,&taille,sizeof(uint32_t));
 	    write(fd_argv,str_argv,sizeof(char)*taille);
           }
           
           char *buf=malloc(sizeof(uint16_t)+sizeof(uint64_t));
           uint16_t ok_reply= SERVER_REPLY_OK;
+          taskmax_name = htobe64(taskmax_name);
+			
           memcpy(buf,&ok_reply,sizeof(uint16_t));
+                    printf("4\n");
+
           memcpy(buf+sizeof(uint16_t),&taskmax_name,sizeof(uint64_t));
+                    printf("5\n");
+
           write(fd_reply,buf,sizeof(uint16_t)+sizeof(uint64_t));
+                    printf("6\n");
+
           free(buf);
+                    printf("7\n");
+
         break;
         case CLIENT_REQUEST_TERMINATE:
           u16=NO_EXIT_CODE;
@@ -429,7 +471,11 @@ int main(){
         break;
         
       }
+		}
+		
     }
+    printf("RD : %d\n",rd);
+	
     printf("A écrit\n");
     wait(NULL);
     uint16_t ok = SERVER_REPLY_OK;
@@ -451,14 +497,14 @@ int main(){
       printf("ErrNo = %s\n",strerror(errno));
       pid_t pid2=fork();
       if(pid2>0){//PERE
-        sleep(10);
+        sleep(60);
         waitpid(pid2,NULL,WNOHANG);
         time2=time(NULL);
         printf("Coucou3\n");
       }//FIN PERE
       else
       {//PETIT FILS
-      	
+      
         struct tm *ptime = localtime(&time2); 
         printf("PETIT FILS chemin = %s\n",pathtasks);
         
