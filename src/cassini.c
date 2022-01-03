@@ -139,7 +139,7 @@ switch(operation){
   error_request:
   close(fd_request);
   error:
-  if (errno != 0) perror("main");
+  if (errno != 0) perror("main1");
   
   free(buffer);
   return EXIT_FAILURE;
@@ -373,7 +373,8 @@ int main(int argc, char * argv[]) {
   char * hours_str = "*";
   char * daysofweek_str = "*";
   char * username_str = getlogin();
-  char * pipes_directory;
+  char * pipes_directory = NULL;
+
 
   int p_in=0;//bool if pipe is declared
   int d_in=0;//bool if daysofweek is declared
@@ -451,11 +452,14 @@ int main(int argc, char * argv[]) {
     strcpy(pipes_directory, "/tmp/");
     strcat(pipes_directory, username_str);
     strcat(pipes_directory, "/saturnd/pipes");
+        
+
   }
   
   char *str_request = malloc(strlen(pipes_directory)+strlen(fifo_request)+1);
   strcpy(str_request,pipes_directory);
   strcat(str_request,fifo_request);
+
   
   int fd_request=open(str_request,  O_WRONLY);//OPEN
   free(str_request);
