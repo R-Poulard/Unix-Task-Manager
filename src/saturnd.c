@@ -25,7 +25,6 @@
 #define CMD_STDOUT "stdout"
 #define CMD_STDERR "stderr"
 
-
 int cpy(char * buf1,char *buf2,size_t size){
   strncpy(buf2,buf1,size);
   buf2[size]='\0';
@@ -33,7 +32,6 @@ int cpy(char * buf1,char *buf2,size_t size){
 }
 
 int get_std(int fd_request ,int fd_reply, int type, char *pathtasks){
-	printf("IN GET_STD\n");
 	uint64_t id;
 	char * buf;
 	read(fd_request,&id, sizeof(uint64_t));
@@ -42,7 +40,6 @@ int get_std(int fd_request ,int fd_reply, int type, char *pathtasks){
     strcpy(pathtasks_file,pathtasks);
 	snprintf(pathtasks_file + strlen(pathtasks), 100-strlen(pathtasks),"%"PRIu64,id );
 	
-	//printf("pathtasks_file = %s \n",pathtasks_file);
 	DIR * dir = opendir(pathtasks_file);
 	if(dir==NULL){
 	  buf=malloc(2*sizeof(uint16_t));
@@ -51,10 +48,9 @@ int get_std(int fd_request ,int fd_reply, int type, char *pathtasks){
           memcpy(buf,&uerror,sizeof(uint16_t));
           memcpy(buf+sizeof(uint16_t),&uerror_type,sizeof(uint16_t));
           write(fd_reply,buf,2*sizeof(uint16_t));
-          //printf("dir NULL\n");
           free(buf);
 	}else{
-		//printf("dir non NULL\n");
+
 		char * pathtasks_std=malloc(100);//MALLOC
 		strcpy(pathtasks_std,pathtasks_file);
 		strcat(pathtasks_std,"/");
@@ -72,7 +68,6 @@ int get_std(int fd_request ,int fd_reply, int type, char *pathtasks){
 			memcpy(buf+sizeof(uint16_t),&uerror_type,sizeof(uint16_t));
 			write(fd_reply,buf,2*sizeof(uint16_t));
 			free(buf);
-			//printf("fd_std don't exist\n");
 		}else{
 			int size_buf = 1024;
 			
@@ -81,15 +76,14 @@ int get_std(int fd_request ,int fd_reply, int type, char *pathtasks){
 			uint32_t taille = 0;
 			int rd;
 			
-			while((rd = read(fd_std, buffer+taille, size_buf) )> 0 ){
-				//if(rd==-1)go to
+			while((rd = read(fd_std, buffer+taille, size_buf))> 0){
 				taille = taille+rd;
 				if(rd == size_buf){
 				  buffer = realloc(buffer, taille_buff + size_buf);
 				  taille_buff = taille_buff + size_buf;
 				}
 			}
-			
+			//if(rd==-1)go to
 			uint16_t ok = htobe16(SERVER_REPLY_OK);
 			uint32_t hto_taille = htobe32(taille);
 						
@@ -278,11 +272,17 @@ int main(){
           strcat(pathtasks_argv,"/");
           strcat(pathtasks_argv,CMD_ARGV);
             
+          char * pathtasks_exit=malloc(100);//MALLOC
+          strcpy(pathtasks_exit,pathtasks_file);
+          strcat(pathtasks_exit,"/");
+          strcat(pathtasks_exit,CMD_EXIT);
+          
           mkdir(pathtasks_file,0751);//file
           
           int fd_timexec=open(pathtasks_timexec,O_CREAT | O_WRONLY,0751);//file
           int fd_argv=open(pathtasks_argv,O_CREAT | O_WRONLY, 0751);
-
+          int fd_exit=open(pathtasks_exit,O_CREAT | O_WRONLY, 0751);
+          
           char * temps=malloc(sizeof(uint64_t)+sizeof(uint32_t)+sizeof(uint8_t));
           
           read(fd_request,temps,sizeof(uint64_t)+sizeof(uint32_t)+sizeof(uint8_t));//READ
@@ -340,11 +340,14 @@ int main(){
 		
 		read(fd_request,&taskid, sizeof(uint64_t));
 		taskid = htobe64(taskid);
+		printf("HTO = %"PRIu64"\n",taskid);
 		
 		pathtasks_file=malloc(100);//MALLOC
 		strcpy(pathtasks_file,pathtasks);
                snprintf(pathtasks_file + strlen(pathtasks), 100-strlen(pathtasks),"%"PRIu64,taskid );
 		
+		printf("EX PATH = %s\n",pathtasks_file);
+		 
 		dir = opendir(pathtasks_file);
 		printf("Id = %"PRIu64" , PathTasks_file = %s\n",taskid,pathtasks_file);
 		if(dir==NULL){
@@ -364,29 +367,48 @@ int main(){
 			strcat(pathtasks_std, CMD_EXIT);
 			
 			int fd_std = open(pathtasks_std, O_RDONLY);
+			printf("%s - %d\n",pathtasks_std,fd_std);
+			
 			printf("T - fd = %d, path_std = %s\n",fd_std,pathtasks_std);
-			char *buffer = malloc(1024);
-				int rd;
-				int size_extime = sizeof(int64_t)+sizeof(uint16_t);
-				int taille_buff = sizeof(int64_t)+sizeof(uint16_t);
-				uint32_t taille = 0;
+			
+			int taille_buff = sizeof(int64_t)+sizeof(uint16_t);
+			char *buffer = malloc(taille_buff);
+			int rd;
+			int size_extime = sizeof(int64_t)+sizeof(uint16_t);
 				
-				while(rd = read(fd_std, buffer+taille*size_extime, size_extime !=0 )){
+			uint32_t taille = 0;
+				
+				while(rd = read(fd_std, buffer+taille*size_extime, size_extime) >0){
 					//if(rd==-1)go to
+					int64_t hto_timing;
+					memcpy(&hto_timing,buffer+taille*size_extime,sizeof(int64_t));
+					hto_timing=htobe64(hto_timing);
+					memcpy(buffer+taille*size_extime,&hto_timing,sizeof(int64_t));
+					
 					taille ++;
 					buffer = realloc(buffer, taille_buff + size_extime);
 					taille_buff = taille_buff + size_extime;
+					printf("taille = %d\n",taille);
+					printf("Time = %llu\n",buffer);
+					printf("Errcode = %"PRIu16" \n",buffer+sizeof(int64_t));
 				}
 				
-				uint16_t ok = SERVER_REPLY_OK;
+				printf("EX APRES WHILE\n");
+				uint16_t ok = htobe16(SERVER_REPLY_OK);
 				uint32_t hto_taille = htobe32(taille);
 				
-				char *buff_total = malloc(sizeof(uint16_t)+ sizeof(uint32_t)+taille*size_extime);
-				memcpy(buff_total,&ok, sizeof(uint16_t));
-				memcpy(buff_total+sizeof(uint16_t), &hto_taille , sizeof(uint32_t));
-				memcpy(buff_total+sizeof(uint16_t)+sizeof(uint32_t), buffer, taille * size_extime);
+				printf("OK = %"PRIu16" et HTO_T = %"PRIu32" \n",ok,hto_taille);
+				char * buff_total = malloc(sizeof(uint16_t)+ sizeof(uint32_t)+taille*size_extime);
 				
-				write(fd_reply, buff_total,sizeof(uint16_t)+ sizeof(uint32_t)+taille * size_extime);
+				printf("SIZE BUF = %d",sizeof(uint16_t)+ sizeof(uint32_t)+taille*size_extime);
+				memcpy(buff_total,&ok, sizeof(uint16_t));
+				printf(" BUF = %s\n",buff_total);
+				memcpy(buff_total+sizeof(uint16_t), &hto_taille , sizeof(uint32_t));
+				printf(" BUF2 = %.*s\n",sizeof(uint16_t)+ sizeof(uint32_t),buff_total);
+				memcpy(buff_total+sizeof(uint16_t)+sizeof(uint32_t), buffer, taille*size_extime);
+				printf(" BUF3 = %.*s\n",sizeof(uint16_t)+ sizeof(uint32_t)+taille*size_extime,buff_total);
+				write(fd_reply, buff_total,sizeof(uint16_t)+ sizeof(uint32_t)+taille*size_extime);
+				printf("EX TI WRITE\n");
 		}        
         break;
         
@@ -527,12 +549,13 @@ int main(){
         DIR * dir=opendir(pathtasks);
 
         while((struct_dir=readdir(dir))){//WHILE TASKS
-			if (strcmp(struct_dir->d_name,".")!=0 && strcmp(struct_dir->d_name,"..")!=0){
-							
-			char *path_to_task = malloc(256);
-			strcpy(path_to_task,pathtasks);
-			strcat(path_to_task,struct_dir->d_name);
-			
+	  printf("Dans struct_dir\n");
+	  if (strcmp(struct_dir->d_name,".")!=0 && strcmp(struct_dir->d_name,"..")!=0){
+	  						
+	  char *path_to_task = malloc(256);
+	  strcpy(path_to_task,pathtasks);
+	  strcat(path_to_task,struct_dir->d_name);
+	  		
           DIR * taskdir = opendir(path_to_task);
           
           char * pathtime = malloc(256);//MALLOC
@@ -553,9 +576,6 @@ int main(){
           char * buf_minutes=malloc(TIMING_TEXT_MIN_BUFFERSIZE);//MALLOC
           char * buf_heures=malloc(TIMING_TEXT_MIN_BUFFERSIZE);//MALLOC
           char * buf_jours=malloc(TIMING_TEXT_MIN_BUFFERSIZE);//MALLOC
-
-
-
 			
           struct timing timing;
           //Minutes
@@ -565,21 +585,16 @@ int main(){
           // Days of the week
           timing_string_from_field(buf_jours, 0, 6, jours);
                    
-                   printf("DDD : %s\n",buf_minutes);
-			printf("%s\n",buf_heures);
-			printf("%s\n",buf_jours);
+          printf("DDD : %s\n",buf_minutes);
+	  printf("%s\n",buf_heures);
+	  printf("%s\n",buf_jours);
 
                    
                                   			
-			printf("III : %d ; %s\n",ptime->tm_min,buf_minutes);
-			printf("%d  ; %s\n",ptime->tm_hour,buf_heures);
-			printf("%d ; %s\n",ptime->tm_wday,buf_jours);
-			
-			
-			
-		
-          
-          
+	  printf("III : %d ; %s\n",ptime->tm_min,buf_minutes);
+	  printf("%d  ; %s\n",ptime->tm_hour,buf_heures);
+	  printf("%d ; %s\n",ptime->tm_wday,buf_jours);
+
           if(compaire_cron(ptime->tm_min,buf_minutes) && compaire_cron(ptime->tm_hour,buf_heures) && compaire_cron(ptime->tm_wday,buf_jours)){
             printf("DANS LE IF\n");
             char * to_cmd = malloc(50);//MALLOC
@@ -659,19 +674,26 @@ int main(){
               strcat(cmd_exit,"/");
               strcat(cmd_exit,CMD_EXIT);
               
-              int fd_exit=open(cmd_exit,O_CREAT | O_WRONLY | O_APPEND);//OPEN
-              
+              int fd_exit=open(cmd_exit,O_CREAT | O_WRONLY | O_APPEND,0751);//OPEN
+              printf("path = %s fd= %d\n",cmd_exit,fd_exit);
               printf("Coucou6\n");
               int status;
               waitpid(pid2,&status,0);
-              write(fd_exit,time2,sizeof(int64_t));//WRITE
+              printf("Status = %d\n",status);
+              
+              int w=write(fd_exit,(int64_t)&time2,sizeof(int64_t));//WRITE
+              printf("CMD_EXIT WRITE = %d\n",w);
               if(WIFEXITED(status)){
-                int wstatus = WEXITSTATUS(status);//exit code                
-                write(fd_exit,(uint16_t)&wstatus,sizeof(int16_t));//WRITE
-               
+                int wstatus = WEXITSTATUS(status);//exit code    
+                uint16_t hey = 5;           
+                w=write(fd_exit,&wstatus,sizeof(uint16_t));//WRITE
+                
+                printf("ErrNo = %s\n",strerror(errno));
+                printf("CMD_EXIT WSTATUS = %d\n WRITE_STAT = %d\n",wstatus,w);
               } else {
                 uint16_t ex=NO_EXIT_CODE;
                 write(fd_exit,&ex,sizeof(uint16_t));//WRITE
+                printf("CMD_EXIT NO EXIT CODE\n");
               }
               
               printf("Coucou7\n");
