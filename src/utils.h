@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include "server-reply.h"
-#include "time-comp.c"
 #include "assert.h"
 #include "client-request.h"
 #include <inttypes.h>
@@ -26,3 +25,8 @@
 #define CMD_STDERR "stderr"
 
 #define PATH_SIZE 256
+
+int cpy(char * buf1,char *buf2,size_t size);
+int parsec (char global [],char* subside,char del);
+int compaire_cron(int NOSMINUTES,char* minutes);
+char * path_constr(char * final_path, char *old_path, char *file);
