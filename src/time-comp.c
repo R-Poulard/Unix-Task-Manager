@@ -1,11 +1,16 @@
+#include "utils.h"
+
+int cpy(char * buf1,char *buf2,size_t size){
+  strncpy(buf2,buf1,size);
+  buf2[size]='\0';
+  return 1;
+}
 
 int parsec (char global [],char* subside,char del){
   int last_one=-1;
   int i=0;
   while(global[i]!='\0'){
-	    printf("PARSEC 1\n");
-
-	  if(global[i]==del){
+    if(global[i]==del){
       last_one=i;
     }
     i++;    
@@ -14,17 +19,8 @@ int parsec (char global [],char* subside,char del){
     return 0;
   }
   else{
-  printf("PARSEC 2\n");
-
     //subside=malloc(sizeof(char)*strlen(global+last_one+1));
-    printf("LAST One : %d \n", last_one);
-    printf("SUBSIDE One : %d \n", strlen(subside));
-    printf("SUBSIDE One : %s \n", subside);
-   
-    printf("STRELEN  : %d \n", strlen(global+last_one));
     strncpy(subside,global+last_one+1,strlen(global+last_one));
-     printf("SUBSIDE APRES CPY : %s \n", subside);
-  printf("PARSEC 3\n");
     global[last_one]='\0';
     return 1;
   }
@@ -44,7 +40,6 @@ int compaire_cron(int NOSMINUTES,char* minutes){
     if(y==0){
 
       if(atoi(current)==NOSMINUTES){
-        printf("EQUALS\n");
         free(current);
         return 1;
       }
@@ -55,7 +50,6 @@ int compaire_cron(int NOSMINUTES,char* minutes){
       
       if(petit<=NOSMINUTES && NOSMINUTES <= grand){
         free(current);
-        printf("Tirets TRUE\n");
         return 1;
       }
     }
@@ -82,3 +76,13 @@ int compaire_cron(int NOSMINUTES,char* minutes){
   
   return 0;
 }
+
+char* path_constr(char * final_path, char *old_path, char *file){
+    final_path = malloc(100);
+    strcpy(final_path, old_path);
+    strcat(final_path,"/");
+    strcat(final_path, file);
+    return final_path;
+}
+
+
