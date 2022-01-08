@@ -1,5 +1,3 @@
-#include "utils.c"
-
 int execute_a_task(char *to_cmd,char *path_to_task,DIR* dir){ //Execute la task
 
     //ON RECUPERE LA COMMANDE ET SES ARGUMENTS
@@ -79,9 +77,9 @@ int write_exit_code(char * path_to_task,pid_t pid2,time_t time2){//Ecrit ptime e
         write(fd_exit,&ex,sizeof(uint16_t));
     }
     //FREE
-    free(cmd_exit)
+    free(cmd_exit);
     close(fd_exit);
-    return EXIT_SUCESS;//Sans importance
+    return EXIT_SUCCESS;//Sans importance
 }
 
 int executioner_pulse(pid_t pid2, time_t time2){
@@ -127,7 +125,7 @@ int executioner_pulse(pid_t pid2, time_t time2){
       timing_string_from_field(buf_heures, 0, 23, heures);// Hours
       timing_string_from_field(buf_jours, 0, 6, jours);// Jours
       //On test si les minutes et les heures et les jours de notre structure ptime sont compris dans l'expression crones de la fonction
-      if(compaire_cron(ptime->tm_min,buf_minutes) && compaire_cron(ptime->tm_hour,buf_heures) && compaire_cron(ptime->tm_wday,buf_jours)){/
+      if(compaire_cron(ptime->tm_min,buf_minutes) && compaire_cron(ptime->tm_hour,buf_heures) && compaire_cron(ptime->tm_wday,buf_jours)){
 
         char * to_cmd = malloc(PATH_SIZE);//MALLOC
         strcpy(to_cmd,path_to_task);
@@ -140,8 +138,7 @@ int executioner_pulse(pid_t pid2, time_t time2){
           free(buf_minutes);
           free(buf_heures);
           free(buf_jours);
-          free(ptime);
-          free(dirent);
+          
           //fonction qui va executer la tache en question
           execute_a_task(to_cmd,path_to_task,dir);
         }
@@ -152,15 +149,12 @@ int executioner_pulse(pid_t pid2, time_t time2){
           free(buf_minutes);
           free(buf_heures);
           free(buf_jours);
-          free(ptime);
           free(to_cmd);
           free(path_to_task);
-
         }
       }
     }
   }
-  free(dirent);
   closedir(dir);
-  exit(EXIT_SUCESS);
+  exit(EXIT_SUCCESS);
 }
