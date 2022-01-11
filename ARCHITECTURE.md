@@ -47,7 +47,7 @@ Le 3ème processus qui est le fils du second, qui se chargera d'itérer dans nos
 C'est pendant cette itération qu'il vérifiera que l'on puisse bien exécuter notre tâche, et lorsque c'est le cas celui-ci mettra en place le processus exécuteur de tâche qui d'une part va lui même créer un processus qui va utiliser la commande exec correspondant à la commande de la tâche, et qui d'autre part attendra l'exit code de son processus exécuteur.
 À noter que chaque processus prend en charge ses fils, donc à l'issue de nos exécutions il n'y aura pas d'accumulation de processus zombies.
 
-Un [diagramme représentant l'architecture des processus](url) se trouve à la racine du dépot.
+Un [diagramme représentant l'architecture des processus](https://gaufre.informatique.univ-paris-diderot.fr/jeanmari/sy5-projet-2021-2022/blob/master/Diagramme_Saturnd.pdf) se trouve à la racine du dépot.
 
 ## III - Les tâches et leur stockage
 
@@ -62,7 +62,7 @@ Ces trois fichier sont créés lors de la création de la tâche.
 
 En plus du dossier `tasks/`, on trouve à la racine de `saturnd_dir/` le fichier `taskid_max` qui permet de savoir quelle est le taskid de la dernière tâche créée, et donc de savoir où l'on s'est arrêté dans la création de tâches.
 Le répertoire `saturnd_dir` et le fichier `taskid_max` sont créés au lancement de saturnd s'ils ne sont pas déjà présents. 
-Un [diagramme représentant l'arborescence du stockage des tâches](url) se trouve à la racine du dépot.
+Un [diagramme représentant l'arborescence du stockage des tâches](https://gaufre.informatique.univ-paris-diderot.fr/jeanmari/sy5-projet-2021-2022/blob/master/Diagramme_Saturnd.pdf) se trouve à la racine du dépot.
 
 
 
@@ -215,17 +215,15 @@ Notre commande `REMOVE_ALL` peut avoir les mêmes problèmes de synchronisation 
 
 Si nos commandes modifiant les propriétés d'une task sont lancées à la minute où la tâche doit être executée.
 
-	Dans se cas on a trois cas possible:
+	Dans ce cas on a trois cas possibles:
 
 	 - Si l'exec() à cette minute ne s'était pas encore fait les modifications seront prise en compte
 
 	 - Si l'exec() à cette minute a déjà était fais alors les modifications ne seront pas prise en compte pour cette minute
 
 	 - Si l'exec() est en train de se faire et que les informations dans les files sont en train d'être recuperées en même temps quelles sont réécrites.
-
-		Dans le meilleur des cas on créer des données chimères illisibles et l'exécution échoue. 
-
-		Dans le pire des cas, on exécute la commande line chimère qui peut soit échouer, soit écrire et exécuter une tâche fausse.
+	 Dans le meilleur des cas on créer des données chimères illisibles et l'exécution échoue.
+     Dans le pire des cas, on exécute la commande line chimère qui peut soit échouer, soit écrire et exécuter une tâche fausse.
 
 
 En conclusion, les erreurs de synchronisation sont inexistantes tant que on ne lance pas des commandes sur une taskid à la minute où elle devrait se faire exécuter.
@@ -239,8 +237,6 @@ Il faut juste être conscient de cette subtilité, c'est pour ça qu'elle a ét�
 
 
 Voici pour finir une liste d'extensions que nous aurions aimé implémenter au projet mais que nous n'avons pas fait par manque de temps : 
-
-
 
 - Une commande pour reset le fichier contenant les `exit_code` et leurs temps.
 
