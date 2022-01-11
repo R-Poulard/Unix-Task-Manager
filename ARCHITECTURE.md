@@ -214,16 +214,12 @@ Nous avons ensuite nos nouvelles tâches qui peuvent elles aussi créer de la co
 Notre commande `REMOVE_ALL` peut avoir les mêmes problèmes de synchronisation que `REMOVE`.
 
 Si nos commandes modifiant les propriétés d'une task sont lancées à la minute où la tâche doit être executée.
-
-	Dans ce cas on a trois cas possibles:
-
-	 - Si l'exec() à cette minute ne s'était pas encore fait les modifications seront prise en compte
-
-	 - Si l'exec() à cette minute a déjà était fais alors les modifications ne seront pas prise en compte pour cette minute
-
-	 - Si l'exec() est en train de se faire et que les informations dans les files sont en train d'être recuperées en même temps quelles sont réécrites.
-	 Dans le meilleur des cas on créer des données chimères illisibles et l'exécution échoue.
-     Dans le pire des cas, on exécute la commande line chimère qui peut soit échouer, soit écrire et exécuter une tâche fausse.
+Dans ce cas on a trois cas possibles:
+- Si l'exec() à cette minute ne s'était pas encore fait les modifications seront prise en compte
+- Si l'exec() à cette minute a déjà était fais alors les modifications ne seront pas prise en compte pour cette minute
+- Si l'exec() est en train de se faire et que les informations dans les files sont en train d'être recuperées en même temps quelles sont réécrites.
+Dans le meilleur des cas on créer des données chimères illisibles et l'exécution échoue.
+Dans le pire des cas, on exécute la commande line chimère qui peut soit échouer, soit écrire et exécuter une tâche fausse.
 
 
 En conclusion, les erreurs de synchronisation sont inexistantes tant que on ne lance pas des commandes sur une taskid à la minute où elle devrait se faire exécuter.
