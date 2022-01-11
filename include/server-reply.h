@@ -6,5 +6,7 @@
 
 #define SERVER_REPLY_ERROR_NOT_FOUND 0x4e46  // 'NF'
 #define SERVER_REPLY_ERROR_NEVER_RUN 0x4e52  // 'NR'
+#define NO_EXIT_CODE 0xffff  // 'EXIT CODE'
+#define SERVER_REPLY_NO_TASK_ERROR 0x4e54 // 'NT'
 
 #endif // SERVER_REPLY_H
