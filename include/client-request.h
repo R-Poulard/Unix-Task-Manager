@@ -9,4 +9,10 @@
 #define CLIENT_REQUEST_GET_STDOUT 0x534f              // 'SO'
 #define CLIENT_REQUEST_GET_STDERR 0x5345              // 'SE'
 
+#define CLIENT_REQUEST_SET_CMD 0x43ff        	      // 'CX
+#define CLIENT_REQUEST_DELETE_ALL 0x444c              // 'DL'
+#define CLIENT_REQUEST_SW_TIME 0x5354                 // 'ST'
+#define CLIENT_REQUEST_EXEC_TASK 0x48ed		      // 'EX'
+#define CLIENT_REQUEST_RESET_TASKMAX 0x5254	      // 'RT'
+
 #endif // CLIENT_REQUEST_H
